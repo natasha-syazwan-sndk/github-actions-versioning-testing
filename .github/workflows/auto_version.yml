@@ -1,0 +1,46 @@
+name: Auto version Ruby script
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auto-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create next Ruby version
+        run: |
+          cd scripts
+
+          # Find highest version number from Ruby files
+          LAST_VERSION=$(ls my_script_v*.rb 2>/dev/null \
+            | sed 's/[^0-9]*//g' \
+            | sort -n \
+            | tail -1)
+
+          if [ -z "$LAST_VERSION" ]; then
+            NEXT_VERSION=1
+          else
+            NEXT_VERSION=$((LAST_VERSION + 1))
+          fi
+
+          NEW_FILE="my_script_v${NEXT_VERSION}.rb"
+
+          cat <<EOF > "$NEW_FILE"
+#!/usr/bin/env ruby
+
+puts "Hello from version $NEXT_VERSION"
+EOF
+
+          chmod +x "$NEW_FILE"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add scripts/
+          git commit -m "Auto create my_script_v$(date +%s).rb"
+          git push
