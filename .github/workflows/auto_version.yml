@@ -1,46 +1,33 @@
-name: Auto version Ruby script
+name: Auto Increment Version Tag (Demo)
 
 on:
-  workflow_dispatch:
-
-permissions:
-  contents: write
+  workflow_dispatch:   # manual trigger
 
 jobs:
-  auto-version:
+  version:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # IMPORTANT: fetch tags
 
-      - name: Create next Ruby version
+      - name: Calculate next version tag
         run: |
-          cd scripts
+          echo "Finding latest tag..."
 
-          LAST_VERSION=$(ls my_script_v*.rb 2>/dev/null \
-            | sed 's/[^0-9]*//g' \
-            | sort -n \
-            | tail -1)
+          latest_tag=$(git tag --list "v*" --sort=-version:refname | head -n 1)
 
-          if [ -z "$LAST_VERSION" ]; then
-            NEXT_VERSION=1
+          if [ -z "$latest_tag" ]; then
+            next_tag="v1"
           else
-            NEXT_VERSION=$((LAST_VERSION + 1))
+            number=${latest_tag#v}
+            next_tag="v$((number + 1))"
           fi
 
-          NEW_FILE="my_script_v${NEXT_VERSION}.rb"
+          echo "Latest tag: $latest_tag"
+          echo "Next tag: $next_tag"
 
-          echo '#!/usr/bin/env ruby' > "$NEW_FILE"
-          echo '' >> "$NEW_FILE"
-          echo "puts \"Hello from version $NEXT_VERSION\"" >> "$NEW_FILE"
-
-          chmod +x "$NEW_FILE"
-
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add scripts/
-          git commit -m "Auto create my_script_v${NEXT_VERSION}.rb" || echo "Nothing to commit"
-          git push
+          git tag "$next_tag"
+          git push origin "$next_tag"
